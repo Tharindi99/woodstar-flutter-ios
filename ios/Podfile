@@ -29,13 +29,6 @@ target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
-  # --- CRITICAL FIX START ---
-  # Prevent CocoaPods from downloading duplicate Firebase symbols alongside SPM
-  pod 'Firebase', :skip_dependency_linkage => true
-  pod 'FirebaseCore', :skip_dependency_linkage => true
-  pod 'FirebaseCoreInternal', :skip_dependency_linkage => true
-  # ---------------------------
-
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   
   target 'RunnerTests' do
