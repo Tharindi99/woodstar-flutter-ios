@@ -1,0 +1,24 @@
+rules_version = '2';
+
+// Deploy: firebase deploy --only storage
+// Or: Firebase Console → Storage → Rules → Publish
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Public read for quiz media referenced by Firestore.
+    match /audios/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /images/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /sounds/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

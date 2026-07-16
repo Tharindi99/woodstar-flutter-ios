@@ -1,0 +1,129 @@
+rules_version = '2';
+
+// Deploy: firebase deploy --only firestore:rules
+// Project: wood-star-8ae4b (see lib/firebase_options.dart)
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- QR sound metadata (read-only for clients) ---
+    match /qrSounds/{soundId} {
+      allow get, list: if true;
+      allow create, update, delete: if false;
+    }
+
+    // --- users/{nickId}: home-controller + mergeQrHuntSessionIntoUserDoc ---
+
+    function validNick(n) {
+      return n.matches('^[A-Za-z0-9 ]{4,30}$');
+    }
+
+    // --- soundToPicture: quiz rounds; id format round01 … round99 ---
+
+    function soundToPictureRoundDataValid() {
+      return request.resource.data.keys().hasOnly([
+        'roundNumber',
+        'soundPath',
+        'correctAnswer',
+        'score',
+        'options',
+      ])
+          && request.resource.data.roundNumber is number
+          && request.resource.data.soundPath is string
+          && request.resource.data.correctAnswer is string
+          && request.resource.data.score is number
+          && request.resource.data.options is list;
+    }
+
+    function soundToPictureRoundIdValid(roundId) {
+      return roundId.matches('^round[0-9]{2}$');
+    }
+
+    match /soundToPicture/meta {
+      allow read: if true;
+      allow create, update: if request.resource.data.keys().hasOnly(['roundCount'])
+          && request.resource.data.roundCount is int
+          && request.resource.data.roundCount >= 1
+          && request.resource.data.roundCount <= 99;
+      allow delete: if false;
+    }
+
+    match /soundToPicture/{roundId} {
+      allow get, list: if true;
+      allow create, update: if soundToPictureRoundIdValid(roundId)
+          && soundToPictureRoundDataValid();
+      // Full collection rebuild: delete round01+ then re-seed (same id pattern as create).
+      allow delete: if soundToPictureRoundIdValid(roundId);
+    }
+
+    // --- pictureToSound: quiz rounds; id format round01 ... round99 ---
+    function pictureToSoundRoundDataValid() {
+      return request.resource.data.keys().hasOnly([
+        'roundNumber',
+        'imagePath',
+        'correctAnswer',
+        'score',
+        'options',
+      ])
+          && request.resource.data.roundNumber is number
+          && request.resource.data.imagePath is string
+          && request.resource.data.correctAnswer is string
+          && request.resource.data.score is number
+          && request.resource.data.options is list;
+    }
+
+    function pictureToSoundRoundIdValid(roundId) {
+      return roundId.matches('^round[0-9]{2}$');
+    }
+
+    match /pictureToSound/meta {
+      allow read: if true;
+      allow create, update: if request.resource.data.keys().hasOnly(['roundCount'])
+          && request.resource.data.roundCount is int
+          && request.resource.data.roundCount >= 1
+          && request.resource.data.roundCount <= 99;
+      allow delete: if false;
+    }
+
+    match /pictureToSound/{roundId} {
+      allow get, list: if true;
+      allow create, update: if pictureToSoundRoundIdValid(roundId)
+          && pictureToSoundRoundDataValid();
+      allow delete: if pictureToSoundRoundIdValid(roundId);
+    }
+
+    function userCareerDocKeys() {
+      return [
+        'nickname',
+        'gamesPlayed',
+        'wins',
+        'totalScore',
+        'qrMultiDeviceScore',
+        'qrSameDeviceLastGroupTotal',
+        'qrSameDeviceScore',
+        'soundToPicMultiDeviceScore',
+        'soundToPicSameDeviceScore',
+        'soundToPicSameDeviceLastGroupTotal',
+        'bestStreak',
+        'bestAccuracy',
+        'bestTime',
+        'createdAt',
+      ];
+    }
+
+    match /users/{nickId} {
+      allow get, list: if true;
+
+      // Nickname-only bootstrap (home / lobby) or full career doc on first game.
+      allow create: if validNick(nickId)
+          && request.resource.data.nickname == nickId
+          && request.resource.data.keys().hasOnly(userCareerDocKeys());
+
+      allow update: if validNick(nickId)
+          && request.resource.data.nickname == nickId
+          && request.resource.data.keys().hasOnly(userCareerDocKeys());
+
+      allow delete: if false;
+    }
+  }
+}
